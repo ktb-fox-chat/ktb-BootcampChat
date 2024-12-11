@@ -1,9 +1,6 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
-const { upload } = require('../middleware/upload');
-const path = require('path');
 const deleteFileFromS3 = require('../services/s3Service');
-const fs = require('fs').promises;
 
 // 회원가입
 exports.register = async (req, res) => {
@@ -240,10 +237,8 @@ exports.deleteProfileImage = async (req, res) => {
     }
 
     if (user.profileImage) {
-      const imagePath = path.join(__dirname, '..', user.profileImage);
       try {
-        await fs.access(imagePath);
-        await fs.unlink(imagePath);
+        await deleteFileFromS3(user.profileImage);
       } catch (error) {
         console.error('Profile image delete error:', error);
       }
@@ -279,10 +274,8 @@ exports.deleteAccount = async (req, res) => {
 
     // 프로필 이미지가 있다면 삭제
     if (user.profileImage) {
-      const imagePath = path.join(__dirname, '..', user.profileImage);
       try {
-        await fs.access(imagePath);
-        await fs.unlink(imagePath);
+        await deleteFileFromS3(user.profileImage);
       } catch (error) {
         console.error('Profile image delete error:', error);
       }
