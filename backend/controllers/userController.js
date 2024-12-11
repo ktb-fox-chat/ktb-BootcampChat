@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { upload } = require('../middleware/upload');
 const path = require('path');
+const deleteFileFromS3 = require('../services/s3Service');
 const fs = require('fs').promises;
 
 // 회원가입
@@ -192,9 +193,9 @@ exports.uploadProfileImage = async (req, res) => {
 
     // 기존 프로필 이미지가 있다면 삭제
     if (user.profileImage) {
-      const oldImagePath = user.profileImage;
-      // TO DO - S3 삭제 요청
       try {
+        const oldImagePath = user.profileImage;
+        await deleteFileFromS3(oldImagePath);
       } catch (error) {
         console.error('Old profile image delete error:', error);
       }
