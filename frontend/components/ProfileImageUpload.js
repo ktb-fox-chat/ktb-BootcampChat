@@ -62,17 +62,33 @@ const ProfileImageUpload = ({ currentImage, onImageChange }) => {
       console.log("key: ", key);
   
       // S3 업로드
-      const s3Response = await uploadFileToS3(file, key, file.type);
+      const s3Location = await uploadFileToS3(file, key, file.type);
   
       // 로컬 스토리지의 사용자 정보 업데이트
       const updatedUser = {
         ...user,
-        profileImage: s3Response.Location,
+        profileImage: s3Location,
       };
       localStorage.setItem('user', JSON.stringify(updatedUser));
+
+      // 프로필 이미지 업데이트 API 요청
+      try {
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/api/users/profile-image`;
+        await fetch(url, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-auth-token': user.token,
+            'x-session-id': user.sessionId
+          },
+          body: JSON.stringify({ path: s3Location }),
+        });
+      } catch (error) {
+        console.error('프로필 이미지 요청 오류:', error);
+      }
   
       // 부모 컴포넌트에 변경 알림
-      onImageChange(s3Response.Location);
+      onImageChange(s3Location);
   
       // 전역 이벤트 발생
       window.dispatchEvent(new Event('userProfileUpdate'));
