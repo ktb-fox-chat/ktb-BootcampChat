@@ -10,7 +10,7 @@ const routes = require('./routes');
 
 const app = express();
 const server = http.createServer(app);
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.SERVER_PORT || 5000;
 
 // trust proxy 설정 추가
 app.set('trust proxy', 1);
@@ -49,11 +49,13 @@ app.options('*', cors(corsOptions));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 요청 로깅
-if (process.env.NODE_ENV === 'development') {
+if (process.env.MODE === 'dev') {
   app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
     next();
   });
+} else if(process.env.MODE) {
+  console.debug = () => {}
 }
 
 // 기본 상태 체크
@@ -61,7 +63,7 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
-    env: process.env.NODE_ENV
+    env: process.env.MODE
   });
 });
 
@@ -91,7 +93,7 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({
     success: false,
     message: err.message || '서버 에러가 발생했습니다.',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    ...(process.env.MODE === 'dev' && { stack: err.stack })
   });
 });
 
@@ -101,7 +103,6 @@ mongoose.connect(process.env.MONGO_URI)
     console.log('MongoDB Connected');
     server.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on port ${PORT}`);
-      console.log('Environment:', process.env.NODE_ENV);
       console.log('API Base URL:', `http://0.0.0.0:${PORT}/api`);
     });
   })

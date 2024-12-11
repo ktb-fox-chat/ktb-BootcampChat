@@ -14,4 +14,6 @@ module.exports = {
   redisPort: process.env.REDIS_PORT,
   openaiApiKey: process.env.OPENAI_API_KEY,
   vectorDbEndpoint: process.env.VECTOR_DB_ENDPOINT,
+  serverPort: process.env.SERVER_PORT,
+  mode: process.env.MODE,
 };

@@ -172,7 +172,7 @@ router.get('/', [limiter, auth], async (req, res) => {
       }
     };
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.MODE === 'dev') {
       errorResponse.error.details = error.message;
       errorResponse.error.stack = error.stack;
     }

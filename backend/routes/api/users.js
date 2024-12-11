@@ -72,7 +72,7 @@ router.use((err, req, res, next) => {
   res.status(500).json({
     success: false,
     message: '서버 에러가 발생했습니다.',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    error: process.env.MODE === 'dev' ? err.message : undefined
   });
 });
 
