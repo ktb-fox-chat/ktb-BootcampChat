@@ -4,6 +4,8 @@ import { Alert } from '@goorm-dev/vapor-components';
 import { Camera, X } from 'lucide-react';
 import authService from '../services/authService';
 import PersistentAvatar from './common/PersistentAvatar';
+import { v4 as uuidv4 } from 'uuid';
+import uploadFileToS3 from '../utils/uploadeFileToS3';
 
 const ProfileImageUpload = ({ currentImage, onImageChange }) => {
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -28,70 +30,57 @@ const ProfileImageUpload = ({ currentImage, onImageChange }) => {
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
+  
     try {
       // 이미지 파일 검증
       if (!file.type.startsWith('image/')) {
         throw new Error('이미지 파일만 업로드할 수 있습니다.');
       }
-
+  
       // 파일 크기 제한 (5MB)
       if (file.size > 5 * 1024 * 1024) {
         throw new Error('파일 크기는 5MB를 초과할 수 없습니다.');
       }
-
+  
       setUploading(true);
       setError('');
-
+  
       // 파일 미리보기 생성
       const objectUrl = URL.createObjectURL(file);
       setPreviewUrl(objectUrl);
-
+  
       // 현재 사용자의 인증 정보 가져오기
       const user = authService.getCurrentUser();
       if (!user?.token) {
         throw new Error('인증 정보가 없습니다.');
       }
+  
+  
+      // UUID를 사용하여 S3 키 생성
+      const key = `profile-images/${uuidv4()}.jpg`;
 
-      // FormData 생성
-      const formData = new FormData();
-      formData.append('profileImage', file);
-
-      // 파일 업로드 요청
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/profile-image`, {
-        method: 'POST',
-        headers: {
-          'x-auth-token': user.token,
-          'x-session-id': user.sessionId
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || '이미지 업로드에 실패했습니다.');
-      }
-
-      const data = await response.json();
-      
+      console.log("key: ", key);
+  
+      // S3 업로드
+      const s3Response = await uploadFileToS3(file, key, file.type);
+  
       // 로컬 스토리지의 사용자 정보 업데이트
       const updatedUser = {
         ...user,
-        profileImage: data.imageUrl
+        profileImage: s3Response.Location,
       };
       localStorage.setItem('user', JSON.stringify(updatedUser));
-
+  
       // 부모 컴포넌트에 변경 알림
-      onImageChange(data.imageUrl);
-
+      onImageChange(s3Response.Location);
+  
       // 전역 이벤트 발생
       window.dispatchEvent(new Event('userProfileUpdate'));
-
     } catch (error) {
       console.error('Image upload error:', error);
       setError(error.message);
       setPreviewUrl(getProfileImageUrl(currentImage));
-      
+  
       // 기존 objectUrl 정리
       if (previewUrl && previewUrl.startsWith('blob:')) {
         URL.revokeObjectURL(previewUrl);
