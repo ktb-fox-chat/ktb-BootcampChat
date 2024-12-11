@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import { useRouter } from 'next/router';
 import { Card } from '@goorm-dev/vapor-core';
 import { 
@@ -23,6 +23,7 @@ function NewChatRoom() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
+  const debounceRef = useRef(null);
 
   useEffect(() => {
     const user = authService.getCurrentUser();
@@ -76,57 +77,60 @@ function NewChatRoom() {
       return;
     }
 
-    try {
-      setLoading(true);
-      setError('');
-
-      // 채팅방 생성
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': currentUser.token,
-          'x-session-id': currentUser.sessionId
-        },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          password: formData.hasPassword ? formData.password : undefined
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (response.status === 401) {
-          try {
-            await authService.refreshToken();
-            const updatedUser = authService.getCurrentUser();
-            if (updatedUser) {
-              setCurrentUser(updatedUser);
-              return handleSubmit(e);
-            }
-          } catch (refreshError) {
-            throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
-          }
-        }
-        throw new Error(errorData.message || '채팅방 생성에 실패했습니다.');
-      }
-
-      const { data } = await response.json();
-      
-      // 생성된 채팅방에 자동으로 입장
-      await joinRoom(data._id, formData.hasPassword ? formData.password : undefined);
-
-    } catch (error) {
-      console.error('Room creation/join error:', error);
-      setError(error.message);
-      
-      if (error.message.includes('인증') || error.message.includes('만료')) {
-        authService.logout();
-        router.push('/');
-      }
-    } finally {
-      setLoading(false);
+    // 디바운스 로직
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
     }
+
+    debounceRef.current = setTimeout(async () => {
+      try {
+        setLoading(true);
+        setError('');
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-auth-token': currentUser.token,
+            'x-session-id': currentUser.sessionId
+          },
+          body: JSON.stringify({
+            name: formData.name.trim(),
+            password: formData.hasPassword ? formData.password : undefined
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          if (response.status === 401) {
+            try {
+              await authService.refreshToken();
+              const updatedUser = authService.getCurrentUser();
+              if (updatedUser) {
+                setCurrentUser(updatedUser);
+                return handleSubmit(e); // 재시도
+              }
+            } catch (refreshError) {
+              throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
+            }
+          }
+          throw new Error(errorData.message || '채팅방 생성에 실패했습니다.');
+        }
+
+        const { data } = await response.json();
+        await joinRoom(data._id, formData.hasPassword ? formData.password : undefined);
+      } catch (error) {
+        console.error('Room creation/join error:', error);
+        setError(error.message);
+        if (error.message.includes('인증') || error.message.includes('만료')) {
+          authService.logout();
+          router.push('/');
+        }
+      } finally {
+        setLoading(false);
+        debounceRef.current = null; // 디바운스 타이머 초기화
+      }
+    }, 300);
   };
 
   const handleSwitchChange = (e) => {
