@@ -57,7 +57,7 @@ const ProfileImageUpload = ({ currentImage, onImageChange }) => {
   
   
       // UUID를 사용하여 S3 키 생성
-      const key = `profile-images/${uuidv4()}.jpg`;
+      const key = `profile-images/${uuidv4()}`;
 
       console.log("key: ", key);
   
