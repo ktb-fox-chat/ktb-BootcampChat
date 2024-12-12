@@ -2,7 +2,7 @@ import axios, { isCancel, CancelToken } from 'axios';
 import authService from './authService';
 import { Toast } from '../components/Toast';
 import { v4 as uuidv4 } from 'uuid';
-import uploadeFileToS3 from '../utils/uploadeFileToS3';
+import { uploadFileToS3 } from '../utils/uploadeFileToS3';
 
 class FileService {
   constructor() {
@@ -124,7 +124,7 @@ class FileService {
       const contentType = file.type || 'application/octet-stream';
       console.log('file key: ', key);
 
-      const fileUrl = await uploadeFileToS3(file, key, contentType);
+      const fileUrl = await uploadFileToS3(file, key, contentType);
       let res;
 
       try {

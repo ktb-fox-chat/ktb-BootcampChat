@@ -55,4 +55,8 @@ const uploadFileToS3 = async (file, key, contentType) => {
   }
 }
 
-module.exports = uploadProfileImageToS3, uploadFileToS3;
+module.exports = {
+  uploadProfileImageToS3,
+  uploadFileToS3,
+};
+
