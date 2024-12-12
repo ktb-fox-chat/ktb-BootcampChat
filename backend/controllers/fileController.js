@@ -83,7 +83,6 @@ const getFileFromRequest = async (req) => {
 };
 
 exports.uploadFile = async (req, res) => {
-  console.log("uploadFile ✅");
   try {
     const { path, originalname, s3name, size, mimetype } = req.body;
 
@@ -101,7 +100,7 @@ exports.uploadFile = async (req, res) => {
       'image/jpeg', 'image/png', 'image/gif', 'image/webp',
       'video/mp4', 'video/webm',
       'audio/mpeg', 'audio/wav',
-      'application/pdf'
+      'application/pdf', 'video/quicktime'
     ];
     
     if (!allowedMimeTypes.includes(mimetype)) {
