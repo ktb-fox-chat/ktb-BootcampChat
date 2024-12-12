@@ -217,7 +217,7 @@ const FileMessage = ({
 
   const renderFilePreview = () => {
     const mimetype = msg.file?.mimetype || '';
-    const originalname = getDecodedFilename(msg.file?.originalname || 'Unknown File');
+    const originalname = msg.file?.originalname;
     const size = fileService.formatFileSize(msg.file?.size || 0);
     
     const FileActions = () => (
@@ -271,7 +271,7 @@ const FileMessage = ({
                 controls
                 preload="metadata"
                 aria-label={`${originalname} 비디오`}
-                crossOrigin="use-credentials"
+                // crossOrigin="use-credentials"
               >
                 <source src={previewUrl} type={mimetype} />
                 <track kind="captions" />
@@ -310,7 +310,7 @@ const FileMessage = ({
                 controls
                 preload="metadata"
                 aria-label={`${originalname} 오디오`}
-                crossOrigin="use-credentials"
+                // crossOrigin="use-credentials"
               >
                 <source src={previewUrl} type={mimetype} />
                 오디오를 재생할 수 없습니다.
