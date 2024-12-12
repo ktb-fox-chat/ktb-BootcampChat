@@ -58,10 +58,25 @@ if (process.env.MODE === 'dev') {
   console.debug = () => {}
 }
 
-// 기본 상태 체크
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+// // 기본 상태 체크
+// app.get('/health', (req, res) => {
+//   res.json({ 
+//     status: 'ok', 
+//     timestamp: new Date().toISOString(),
+//     env: process.env.MODE
+//   });
+// });
+
+// health 전용 CORS 옵션
+const healthCorsOptions = {
+  origin: '*',  // 모든 출처 허용
+  methods: ['GET'],  // health check는 GET 메서드만 허용
+};
+
+// health 라우트에 별도의 CORS 미들웨어 적용
+app.get('/health', cors(healthCorsOptions), (req, res) => {
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     env: process.env.MODE
   });
