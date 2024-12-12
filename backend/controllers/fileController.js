@@ -85,7 +85,7 @@ const getFileFromRequest = async (req) => {
 exports.uploadFile = async (req, res) => {
   console.log("uploadFile ✅");
   try {
-    const { path, originalname, size, mimetype } = req.body;
+    const { path, originalname, s3name, size, mimetype } = req.body;
 
     if (!path || !originalname || !size || !mimetype) {
       return res.status(400).json({
@@ -94,7 +94,7 @@ exports.uploadFile = async (req, res) => {
       });
     }
 
-    const safeFilename = generateSafeFilename(originalname);
+    // const safeFilename = generateSafeFilename(originalname);
 
     // MIME 타입 검증
     const allowedMimeTypes = [
@@ -112,7 +112,7 @@ exports.uploadFile = async (req, res) => {
     }
 
     const file = new File({
-      filename: safeFilename,
+      filename: s3name,
       originalname: originalname,
       mimetype: mimetype,
       size: size,
@@ -178,11 +178,18 @@ exports.downloadFile = async (req, res) => {
   }
 };
 
-exports.viewFile = async (req, res) => {
+exports.viewFile = async (req, res) => { // TO DO - 미리보기
   try {
     const { file, filePath } = await getFileFromRequest(req);
 
     if (!file.isPreviewable()) {
+      // const previewableTypes = [
+      //   'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      //   'video/mp4', 'video/webm',
+      //   'audio/mpeg', 'audio/wav',
+      //   'application/pdf'
+      // ];
+      // return previewableTypes.includes(this.mimetype);
       return res.status(415).json({
         success: false,
         message: '미리보기를 지원하지 않는 파일 형식입니다.'
