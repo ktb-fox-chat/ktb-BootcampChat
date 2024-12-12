@@ -124,10 +124,11 @@ class FileService {
       console.log('file key: ', key);
 
       const fileUrl = await uploadeFileToS3(file, key, contentType);
+      let res;
 
       try {
         const url = `${process.env.NEXT_PUBLIC_API_URL}/api/files/upload`;
-        await fetch(url, {
+        res = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -141,9 +142,11 @@ class FileService {
             mimetype: file.type,
           })
         })
+        console.debug();
       } catch (error) {
         console.error(error);
       }
+      const parseToJson = await res.json();
 
       this.activeUploads.delete(file.name);
 
@@ -151,8 +154,11 @@ class FileService {
         success: true,
         data: {
           file: {
-            filename: file.name,
-            fileUrl: fileUrl,
+            _id: parseToJson.file?._id,
+            path: fileUrl,
+            originalname: file.name,
+            size: file.size,
+            mimetype: file.type,
           }
         }
       };
