@@ -7,7 +7,7 @@ const FileSchema = new mongoose.Schema({
     index: true,
     validate: {
       validator: function(v) {
-        return /^[0-9]+_[a-f0-9]+\.[a-z0-9]+$/.test(v);
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(v);
       },
       message: '올바르지 않은 파일명 형식입니다.'
     }

@@ -87,7 +87,7 @@ exports.uploadFile = async (req, res) => {
   try {
     const { path, originalname, s3name, size, mimetype } = req.body;
 
-    if (!path || !originalname || !size || !mimetype) {
+    if (!path || !originalname || !size || !mimetype || !s3name) {
       return res.status(400).json({
         success: false,
         message: '파일 메타데이터가 부족합니다.'
