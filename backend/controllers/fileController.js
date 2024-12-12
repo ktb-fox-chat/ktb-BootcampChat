@@ -83,55 +83,64 @@ const getFileFromRequest = async (req) => {
 };
 
 exports.uploadFile = async (req, res) => {
+  console.log("uploadFile ✅");
   try {
-    if (!req.file) {
+    const { path, originalname, size, mimetype } = req.body;
+
+    if (!path || !originalname || !size || !mimetype) {
       return res.status(400).json({
         success: false,
-        message: '파일이 선택되지 않았습니다.'
+        message: '파일 메타데이터가 부족합니다.'
       });
     }
 
-    const safeFilename = generateSafeFilename(req.file.originalname);
-    const currentPath = req.file.path;
-    const newPath = path.join(uploadDir, safeFilename);
+    const safeFilename = generateSafeFilename(originalname);
+
+    // MIME 타입 검증
+    const allowedMimeTypes = [
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'video/mp4', 'video/webm',
+      'audio/mpeg', 'audio/wav',
+      'application/pdf'
+    ];
+    
+    if (!allowedMimeTypes.includes(mimetype)) {
+      return res.status(400).json({
+        success: false,
+        message: '허용되지 않는 파일 형식입니다.'
+      });
+    }
 
     const file = new File({
       filename: safeFilename,
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size,
+      originalname: originalname,
+      mimetype: mimetype,
+      size: size,
       user: req.user.id,
-      path: newPath
+      path: path // S3 경로
     });
 
     await file.save();
-    await fsPromises.rename(currentPath, newPath);
 
     res.status(200).json({
       success: true,
-      message: '파일 업로드 성공',
+      message: '파일 메타데이터 저장 성공',
       file: {
         _id: file._id,
         filename: file.filename,
         originalname: file.originalname,
         mimetype: file.mimetype,
         size: file.size,
-        uploadDate: file.uploadDate
+        uploadDate: file.uploadDate,
+        path: file.path
       }
     });
 
   } catch (error) {
     console.error('File upload error:', error);
-    if (req.file?.path) {
-      try {
-        await fsPromises.unlink(req.file.path);
-      } catch (unlinkError) {
-        console.error('Failed to delete uploaded file:', unlinkError);
-      }
-    }
     res.status(500).json({
       success: false,
-      message: '파일 업로드 중 오류가 발생했습니다.',
+      message: '파일 메타데이터 저장 중 오류가 발생했습니다.',
       error: error.message
     });
   }
@@ -249,7 +258,7 @@ const handleFileError = (error, res) => {
   });
 };
 
-exports.deleteFile = async (req, res) => {
+exports.deleteFile = async (req, res) => { // API는 파져있는데 프론트에서 호출하는 로직이 없음.
   try {
     const file = await File.findById(req.params.id);
     

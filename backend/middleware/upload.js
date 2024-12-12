@@ -1,17 +1,10 @@
 // backend/middleware/upload.js
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const crypto = require('crypto');
 
 // uploads 디렉토리 절대 경로 설정
 const uploadDir = path.join(__dirname, '../uploads');
-
-// uploads 디렉토리 생성 및 권한 설정
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-  fs.chmodSync(uploadDir, '0755');
-}
 
 // MIME 타입과 확장자 매핑
 const ALLOWED_TYPES = {
@@ -152,17 +145,18 @@ const errorHandler = (error, req, res, next) => {
   console.error('File upload error:', {
     error: error.message,
     stack: error.stack,
-    file: req.file
+    // file: req.file
   });
 
   // 업로드된 파일이 있다면 삭제
-  if (req.file) {
-    try {
-      fs.unlinkSync(req.file.path);
-    } catch (unlinkError) {
-      console.error('Failed to delete uploaded file:', unlinkError);
-    }
-  }
+  // TO DO - file의 path를 기반으로 S3에서 삭제
+  // if (req.file) {
+  //   try {
+  //     fs.unlinkSync(req.file.path);
+  //   } catch (unlinkError) {
+  //     console.error('Failed to delete uploaded file:', unlinkError);
+  //   }
+  // }
 
   if (error instanceof multer.MulterError) {
     switch (error.code) {

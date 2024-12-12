@@ -1,4 +1,4 @@
-const fs = require('fs'); // TO DO - fs 제거하기
+const fs = require('fs');
 const path = require('path');
 
 // 결과를 저장할 파일 경로

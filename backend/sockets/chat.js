@@ -440,6 +440,7 @@ module.exports = function(io) {
     
     // 메시지 전송 처리
     socket.on('chatMessage', async (messageData) => {
+      console.debug("✅ chatMessage ✅");
       try {
         if (!socket.user) {
           throw new Error('Unauthorized');

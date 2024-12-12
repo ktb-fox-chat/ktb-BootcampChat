@@ -8,7 +8,7 @@ const { upload, errorHandler } = require('../../middleware/upload');
 // 파일 업로드
 router.post('/upload',
   auth,
-  upload.single('file'),
+  // upload.single('file'),
   errorHandler,
   fileController.uploadFile
 );
