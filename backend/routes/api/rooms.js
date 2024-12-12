@@ -4,6 +4,7 @@ const auth = require('../../middleware/auth');
 const Room = require('../../models/Room');
 const User = require('../../models/User');
 const { rateLimit } = require('express-rate-limit');
+const RoomCacheHandler = require('../../utils/roomhandler')
 let io;
 
 // 속도 제한 설정
@@ -79,6 +80,55 @@ router.get('/', [limiter, auth], async (req, res) => {
     const page = Math.max(0, parseInt(req.query.page) || 0);
     const pageSize = Math.min(Math.max(1, parseInt(req.query.pageSize) || 10), 50);
     const skip = page * pageSize;
+
+    const cache = await RoomCacheHandler.get()
+
+    // 캐시 데이터 반환
+    if(cache) {
+      const rooms = cache
+      .slice(skip, skip + pageSize)
+      .filter((room) => room !== null || room !== undefined)
+      
+      const totalCount = cache.length
+
+      // 정렬 설정
+      const allowedSortFields = ['createdAt', 'name', 'participantsCount'];
+      const sortField = allowedSortFields.includes(req.query.sortField) 
+        ? req.query.sortField 
+        : 'createdAt';
+      const sortOrder = ['asc', 'desc'].includes(req.query.sortOrder)
+        ? req.query.sortOrder
+        : 'desc';
+
+      // 메타데이터 계산    
+      const totalPages = Math.ceil(totalCount / pageSize);
+      const hasMore = skip + rooms.length < totalCount;
+
+      // 캐시 설정
+      res.set({
+        'Cache-Control': 'private, max-age=10',
+        'Last-Modified': new Date().toUTCString()
+      });
+
+      // 응답 전송
+      res.json({
+        success: true,
+        data: rooms,
+        metadata: {
+          total: totalCount,
+          page,
+          pageSize,
+          totalPages,
+          hasMore,
+          currentCount: rooms.length,
+          sort: {
+            field: sortField,
+            order: sortOrder
+          }
+        }
+      });
+      return
+    }
 
     // 정렬 설정
     const allowedSortFields = ['createdAt', 'name', 'participantsCount'];
@@ -160,8 +210,7 @@ router.get('/', [limiter, auth], async (req, res) => {
           order: sortOrder
         }
       }
-    });
-
+    }); 
   } catch (error) {
     console.error('방 목록 조회 에러:', error);
     const errorResponse = {
@@ -204,6 +253,17 @@ router.post('/', auth, async (req, res) => {
     const populatedRoom = await Room.findById(savedRoom._id)
       .populate('creator', 'name email')
       .populate('participants', 'name email');
+
+    await RoomCacheHandler.add({
+      _id: savedRoom._id.toString(),
+      name: name.trim(),
+      password,
+      hasPassword: password === undefined || password === null ? false : true,
+      participants: savedRoom.participants,
+      createdAt: new Date(Date.now()),
+      messages: [],
+      loadfactor: 0.65,
+    })
     
     // Socket.IO를 통해 새 채팅방 생성 알림
     if (io) {
@@ -243,7 +303,7 @@ router.get('/:roomId', auth, async (req, res) => {
         message: '채팅방을 찾을 수 없습니다.'
       });
     }
-
+    
     res.json({
       success: true,
       data: {
@@ -264,6 +324,42 @@ router.get('/:roomId', auth, async (req, res) => {
 router.post('/:roomId/join', auth, async (req, res) => {
   try {
     const { password } = req.body;
+    const cache = await RoomCacheHandler.findById(req.params.roomId)
+
+    if(cache) {
+      if(cache.hasPassword) {
+        const isPasswordValid = await verifyRoomPassword(password);
+        if (!isPasswordValid) {
+          return res.status(401).json({
+            success: false,
+            message: '비밀번호가 일치하지 않습니다.'
+          });
+        }
+      }
+
+      if (!cache.participants.includes(req.user.id)) {
+        cache.participants.push(req.user.id);
+        RoomCacheHandler.upsert(cache)
+      }
+
+      if (io) {
+        io.to(req.params.roomId).emit('roomUpdate', {
+          ...cache,
+          password: undefined
+        });
+      }
+  
+      res.json({
+        success: true,
+        data: {
+          ...cache,
+          password: undefined
+        }
+      });
+
+      return
+    }
+
     const room = await Room.findById(req.params.roomId).select('+password');
     
     if (!room) {
@@ -316,6 +412,15 @@ router.post('/:roomId/join', auth, async (req, res) => {
     });
   }
 });
+
+const bcrypt = require('bcryptjs');
+
+/**
+ * 캐시 데이터에서 조회한 채팅방 전용 비밀번호 확인 함수 입니다.
+ */
+const verifyRoomPassword = async (roomPassword, password) => {
+  return await bcrypt.compare(password, roomPassword);
+}
 
 module.exports = {
   router,
