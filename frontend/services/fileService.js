@@ -149,9 +149,6 @@ class FileService {
         console.error(error);
       }
       const parseToJson = await res.json();
-
-      this.activeUploads.delete(file.name);
-
       return {
         success: true,
         data: {

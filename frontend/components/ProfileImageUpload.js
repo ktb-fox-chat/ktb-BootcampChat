@@ -5,7 +5,7 @@ import { Camera, X } from 'lucide-react';
 import authService from '../services/authService';
 import PersistentAvatar from './common/PersistentAvatar';
 import { v4 as uuidv4 } from 'uuid';
-import uploadProfileImageToS3 from '../utils/uploadeFileToS3'
+import {uploadProfileImageToS3} from "../utils/uploadeFileToS3";
 
 const ProfileImageUpload = ({ currentImage, onImageChange }) => {
   const [previewUrl, setPreviewUrl] = useState(null);

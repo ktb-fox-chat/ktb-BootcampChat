@@ -46,7 +46,6 @@ const uploadFileToS3 = async (file, key, contentType) => {
         onProgress(percentCompleted); // 진행률 업데이트
       }
     });
-    this.activeUploads.set(file.name, upload);
     const data = await upload.promise();
     return data.Location;
   } catch (error) {
