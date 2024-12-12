@@ -1,6 +1,8 @@
 import axios, { isCancel, CancelToken } from 'axios';
 import authService from './authService';
 import { Toast } from '../components/Toast';
+import { v4 as uuidv4 } from 'uuid';
+import uploadeFileToS3 from '../utils/uploadeFileToS3';
 
 class FileService {
   constructor() {
@@ -116,51 +118,41 @@ class FileService {
         };
       }
 
-      const formData = new FormData();
-      formData.append('file', file);
+      // UUID로 S3 키 생성
+      const key = `files/upload/${uuidv4()}`;
+      const contentType = file.type || 'application/octet-stream';
+      console.log('file key: ', key);
 
-      const source = CancelToken.source();
-      this.activeUploads.set(file.name, source);
+      const fileUrl = await uploadeFileToS3(file, key, contentType);
 
-      const uploadUrl = this.baseUrl ? 
-        `${this.baseUrl}/api/files/upload` : 
-        '/api/files/upload';
-
-      const response = await axios.post(uploadUrl, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'x-auth-token': user.token,
-          'x-session-id': user.sessionId
-        },
-        cancelToken: source.token,
-        withCredentials: true,
-        onUploadProgress: (progressEvent) => {
-          if (onProgress) {
-            const percentCompleted = Math.round(
-              (progressEvent.loaded * 100) / progressEvent.total
-            );
-            onProgress(percentCompleted);
-          }
-        }
-      });
+      try {
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/api/files/upload`;
+        await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-auth-token': user.token,
+            'x-session-id': user.sessionId
+          },
+          body: JSON.stringify({
+            path: fileUrl,
+            originalname: file.name,
+            size: file.size,
+            mimetype: file.type,
+          })
+        })
+      } catch (error) {
+        console.error(error);
+      }
 
       this.activeUploads.delete(file.name);
 
-      if (!response.data || !response.data.success) {
-        return {
-          success: false,
-          message: response.data?.message || '파일 업로드에 실패했습니다.'
-        };
-      }
-
-      const fileData = response.data.file;
       return {
         success: true,
         data: {
-          ...response.data,
           file: {
-            ...fileData,
-            url: this.getFileUrl(fileData.filename, true)
+            filename: file.name,
+            fileUrl: fileUrl,
           }
         }
       };

@@ -5,7 +5,7 @@ import { Camera, X } from 'lucide-react';
 import authService from '../services/authService';
 import PersistentAvatar from './common/PersistentAvatar';
 import { v4 as uuidv4 } from 'uuid';
-import uploadFileToS3 from '../utils/uploadeFileToS3';
+import uploadProfileImageToS3 from '../utils/uploadeFileToS3'
 
 const ProfileImageUpload = ({ currentImage, onImageChange }) => {
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -62,7 +62,7 @@ const ProfileImageUpload = ({ currentImage, onImageChange }) => {
       console.log("key: ", key);
   
       // S3 업로드
-      const s3Location = await uploadFileToS3(file, key, file.type);
+      const s3Location = await uploadProfileImageToS3(file, key, file.type);
   
       // 로컬 스토리지의 사용자 정보 업데이트
       const updatedUser = {
