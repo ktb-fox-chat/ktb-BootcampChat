@@ -119,7 +119,7 @@ class FileService {
       }
 
       // UUID로 S3 키 생성
-      const uuid = uuidv4().replace(/-/g, '_');
+      const uuid = uuidv4();
       const key = `files/upload/${uuid}`;
       const contentType = file.type || 'application/octet-stream';
       console.log('file key: ', key);
