@@ -114,7 +114,7 @@ const FileMessage = ({
         throw new Error('인증 정보가 없습니다.');
       }
 
-      const fileUrl = `https://ktb-fox-chat.s3.ap-northeast-2.amazonaws.com/files/upload/${msg.file.filename}`;
+      const fileUrl = `${process.env.NEXT_PUBLIC_CLOUDFRONT_DOMAIN}/files/upload/${msg.file.filename}`;
       const response = await fetch(fileUrl, {
           method: 'GET',
           mode: 'cors'
@@ -137,6 +137,7 @@ const FileMessage = ({
   };
 
   const handleViewInNewTab = (e) => {
+    console.log("handleViewInNewTab");
     e.preventDefault();
     e.stopPropagation();
     setError(null);

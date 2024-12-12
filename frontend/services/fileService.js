@@ -305,7 +305,7 @@ class FileService {
   getFileUrl(filename, forPreview = false) {
     if (!filename) return '';
 
-    return `https://ktb-fox-chat.s3.ap-northeast-2.amazonaws.com/files/upload/${filename}`;
+    return `${process.env.NEXT_PUBLIC_CLOUDFRONT_DOMAIN}/files/upload/${filename}`;
 
 
     // const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
@@ -317,7 +317,7 @@ class FileService {
 
     if (!file?.filename) return '';
 
-    return `https://ktb-fox-chat.s3.ap-northeast-2.amazonaws.com/files/upload/${file.filename}`;
+    return `${process.env.NEXT_PUBLIC_CLOUDFRONT_DOMAIN}/files/upload/${file.filename}`;
 
     // const baseUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/files/view/${file.filename}`;
     
