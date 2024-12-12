@@ -313,21 +313,24 @@ class FileService {
   }
 
   getPreviewUrl(file, withAuth = true) {
+
     if (!file?.filename) return '';
 
-    const baseUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/files/view/${file.filename}`;
+    return `https://ktb-fox-chat.s3.ap-northeast-2.amazonaws.com/files/upload/${file.filename}`;
+
+    // const baseUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/files/view/${file.filename}`;
     
-    if (!withAuth) return baseUrl;
+    // if (!withAuth) return baseUrl;
 
-    const user = authService.getCurrentUser();
-    if (!user?.token || !user?.sessionId) return baseUrl;
+    // const user = authService.getCurrentUser();
+    // if (!user?.token || !user?.sessionId) return baseUrl;
 
-    // URL 객체 생성 전 프로토콜 확인
-    const url = new URL(baseUrl);
-    url.searchParams.append('token', encodeURIComponent(user.token));
-    url.searchParams.append('sessionId', encodeURIComponent(user.sessionId));
+    // // URL 객체 생성 전 프로토콜 확인
+    // const url = new URL(baseUrl);
+    // url.searchParams.append('token', encodeURIComponent(user.token));
+    // url.searchParams.append('sessionId', encodeURIComponent(user.sessionId));
 
-    return url.toString();
+    // return url.toString();
   }
 
   getFileType(filename) {
