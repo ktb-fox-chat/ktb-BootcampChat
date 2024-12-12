@@ -114,16 +114,22 @@ const FileMessage = ({
         throw new Error('인증 정보가 없습니다.');
       }
 
-      const baseUrl = fileService.getFileUrl(msg.file.filename, false);
-      const authenticatedUrl = `${baseUrl}?token=${encodeURIComponent(user.token)}&sessionId=${encodeURIComponent(user.sessionId)}&download=true`;
+      const fileUrl = `https://ktb-fox-chat.s3.ap-northeast-2.amazonaws.com/files/upload/${msg.file.filename}`;
+      const response = await fetch(fileUrl, {
+          method: 'GET',
+          mode: 'cors'
+      });
 
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = authenticatedUrl;
-      link.download = getDecodedFilename(msg.file.originalname);
+      link.href = url;
+      link.download = msg.file.originalname;
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('File download error:', error);
       setError(error.message || '파일 다운로드 중 오류가 발생했습니다.');

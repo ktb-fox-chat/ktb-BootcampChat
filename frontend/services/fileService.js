@@ -149,6 +149,7 @@ class FileService {
         console.error(error);
       }
       const parseToJson = await res.json();
+      console.log("@@@ parseToJson: ", parseToJson);
       return {
         success: true,
         data: {
@@ -304,9 +305,12 @@ class FileService {
   getFileUrl(filename, forPreview = false) {
     if (!filename) return '';
 
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    const endpoint = forPreview ? 'view' : 'download';
-    return `${baseUrl}/api/files/${endpoint}/${filename}`;
+    return `https://ktb-fox-chat.s3.ap-northeast-2.amazonaws.com/files/upload/${filename}`;
+
+
+    // const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    // const endpoint = forPreview ? 'view' : 'download';
+    // return `${baseUrl}/api/files/${endpoint}/${filename}`;
   }
 
   getPreviewUrl(file, withAuth = true) {
