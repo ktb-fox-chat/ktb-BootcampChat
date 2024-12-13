@@ -7,6 +7,13 @@ const socketIO = require('socket.io');
 const path = require('path');
 const { router: roomsRouter, initializeSocket } = require('./routes/api/rooms');
 const routes = require('./routes');
+const Room = require('./models/Room');
+const RoomCacheHandler = require('./utils/roomhandler')
+const MessageCacheHandler = require('./utils/messagehandler')
+const Shutdown = require('./middleware/shutdown');
+const Message = require('./models/Message');
+const redisClient = require('./utils/redisClient');
+const { syncCacheData } = require('./utils/syncDBHandler')
 
 const app = express();
 const server = http.createServer(app);
@@ -82,6 +89,8 @@ app.get('/health-check', cors(healthCheckCorsOptions), (req, res) => {
   });
 });
 
+app.get('/shutdown', Shutdown)
+
 // API 라우트 마운트
 app.use('/api', routes);
 
@@ -112,15 +121,56 @@ app.use((err, req, res, next) => {
   });
 });
 
+// 예외 상황 발생 시, 레디스 연결 종료 및 데이터 저장
+// signal 이벤트는 감지하여도 동기를 보장해주지 않아 따로 처리하진 않았습니다.
+// shutdown 라우트를 통해 요청을 보내는 형식으로 이를 대체하였습니다.
+process.on('uncaughtException', async (err) => {
+  console.error('Uncaught exception:', err);
+  console.log("Starting disconnect redis...")
+  await redisClient.quit();
+  await syncCacheData()
+  console.log('Redis connection closed due to error');
+  process.exit(1);
+});
+//
+
+
 // 서버 시작
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log('MongoDB Connected');
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log('API Base URL:', `http://0.0.0.0:${PORT}/api`);
-    });
-  })
+  .then(async () => {
+      console.log('MongoDB Connected');
+      server.listen(PORT, '0.0.0.0', () => {
+        console.log(`Server running on port ${PORT}`);
+        console.log('API Base URL:', `http://0.0.0.0:${PORT}/api`);
+      });
+
+      // 몽고디비에 적재된 데이터를 조회하고 캐시데이터에 동기화 합니다.
+      Room
+      .find()
+      .then(async (rooms) => {
+        for(let i=0; i<rooms.length; ++i) {
+          const room = rooms[i]
+          if(!room._id) continue
+
+          RoomCacheHandler.upsert({
+            ...room._doc,
+            _id: room._id.toString(),
+          })
+        }
+      })
+    })
+
+    // const messageCollection = {}
+    // Message
+    // .find()
+    // .then(async (messages) => {
+    //   for(let i=0; i<messages.length; ++i) {
+    //     const message = messages[i]
+    //     if(!messageCollection[message.room]) messageCollection[message.room] = []
+    //     messageCollection[message.room].push(message)
+    //   }
+    //   MessageCacheHandler.set(messageCollection)
+    // })
   .catch(err => {
     console.error('Server startup error:', err);
     process.exit(1);

@@ -1,4 +1,5 @@
 const Message = require('../models/Message');
+const { ObjectId } = require('mongodb');
 const Room = require('../models/Room');
 const User = require('../models/User');
 const File = require('../models/File');
@@ -7,6 +8,8 @@ const { jwtSecret } = require('../config/keys');
 const redisClient = require('../utils/redisClient');
 const SessionService = require('../services/sessionService');
 const aiService = require('../services/aiService');
+const RoomCacheHandler = require('../utils/roomhandler')
+const MessageCacheHandler = require('../utils/messagehandler')
 
 module.exports = function(io) {
   const connectedUsers = new Map();
@@ -29,6 +32,8 @@ module.exports = function(io) {
     });
   };
 
+  // 메세지 캐싱 부분 주석 처리 됨
+  
   // 메시지 일괄 로드 함수 개선
   const loadMessages = async (socket, roomId, before, limit = BATCH_SIZE) => {
     const timeoutPromise = new Promise((_, reject) => {
@@ -58,15 +63,22 @@ module.exports = function(io) {
         timeoutPromise
       ]);
 
+      // const messages = await MessageCacheHandler.findById(roomId)
+
       // 결과 처리
       const hasMore = messages.length > limit;
       const resultMessages = messages.slice(0, limit);
-      const sortedMessages = resultMessages.sort((a, b) => 
+      let sortedMessages = resultMessages.sort((a, b) => 
         new Date(a.timestamp) - new Date(b.timestamp)
       );
 
       // 읽음 상태 비동기 업데이트
       if (sortedMessages.length > 0 && socket.user) {
+        // sortedMessages = sortedMessages.map(
+        //   message => message.readers.push(new ObjectId(socket.user.id))
+        // )
+        // MessageCacheHandler.upsert(sortedMessages)
+
         const messageIds = sortedMessages.map(msg => msg._id);
         Message.updateMany(
           {
@@ -457,10 +469,15 @@ module.exports = function(io) {
         }
 
         // 채팅방 권한 확인
-        const chatRoom = await Room.findOne({
-          _id: room,
-          participants: socket.user.id
-        });
+        // const chatRoom = await Room.findOne({
+        //   _id: room,
+        //   participants: socket.user.id
+        // });
+        const chatRoom = await RoomCacheHandler
+        .findById(room)
+        .then(
+          result => result.participants.find(user => user === socket.user.id) !== undefined
+        )
 
         if (!chatRoom) {
           throw new Error('채팅방 접근 권한이 없습니다.');
@@ -588,12 +605,13 @@ module.exports = function(io) {
         }
 
         // 권한 확인
-        const room = await Room.findOne({
-          _id: roomId,
-          participants: socket.user.id
-        }).select('participants').lean();
-
-        if (!room) {
+        // const room = await Room.findOne({
+        //   _id: roomId,
+        //   participants: socket.user.id
+        // }).select('participants').lean();
+        
+        const room = await RoomCacheHandler.findById(roomId)
+        if (!room || room.participants.find((user) => user.id === socket.user.id) === undefined) {
           console.log(`Room ${roomId} not found or user has no access`);
           return;
         }
@@ -610,19 +628,21 @@ module.exports = function(io) {
         });
 
         // 참가자 목록 업데이트 - profileImage 포함
-        const updatedRoom = await Room.findByIdAndUpdate(
-          roomId,
-          { $pull: { participants: socket.user.id } },
-          { 
-            new: true,
-            runValidators: true
-          }
-        ).populate('participants', 'name email profileImage');
-
-        if (!updatedRoom) {
-          console.log(`Room ${roomId} not found during update`);
-          return;
-        }
+        // const updatedRoom = await Room.findByIdAndUpdate(
+        //   roomId,
+        //   { $pull: { participants: socket.user.id } },
+        //   { 
+        //     new: true,
+        //     runValidators: true
+        //   }
+        // ).populate('participants', 'name email profileImage');
+        room.participants = room.participants.filter((user) => user.id !== socket.user.id)
+        RoomCacheHandler.upsert(room)
+    
+        // if (!updatedRoom) {
+        //   console.log(`Room ${roomId} not found during update`);
+        //   return;
+        // }
 
         // 스트리밍 세션 정리
         for (const [messageId, session] of streamingSessions.entries()) {
@@ -688,20 +708,25 @@ module.exports = function(io) {
               type: 'system',
               timestamp: new Date()
             });
+            
+            const room = await RoomCacheHandler.findById(roomId)
+            room.participants = room.participants.filter((user) => user.id !== socket.user.id)
+            RoomCacheHandler.upsert(room)
+            io.to(roomId).emit('message', leaveMessage);
+            io.to(roomId).emit('participantsUpdate', updatedRoom.participants);
+            // const updatedRoom = await Room.findByIdAndUpdate(
+            //   roomId,
+            //   { $pull: { participants: socket.user.id } },
+            //   { 
+            //     new: true,
+            //     runValidators: true 
+            //   }
+            // ).populate('participants', 'name email profileImage');
 
-            const updatedRoom = await Room.findByIdAndUpdate(
-              roomId,
-              { $pull: { participants: socket.user.id } },
-              { 
-                new: true,
-                runValidators: true 
-              }
-            ).populate('participants', 'name email profileImage');
-
-            if (updatedRoom) {
-              io.to(roomId).emit('message', leaveMessage);
-              io.to(roomId).emit('participantsUpdate', updatedRoom.participants);
-            }
+            // if (updatedRoom) {
+            //   io.to(roomId).emit('message', leaveMessage);
+            //   io.to(roomId).emit('participantsUpdate', updatedRoom.participants);
+            // }
           }
         }
 

@@ -1,5 +1,5 @@
 // backend/utils/redisClient.js
-const Redis = require('redis');
+const Redis = require('ioredis');
 const { redisHost, redisPort } = require('../config/keys');
 
 class RedisClient {
@@ -19,38 +19,52 @@ class RedisClient {
     try {
       console.log('Connecting to Redis...');
 
-      this.client = Redis.createClient({
-        url: `redis://${redisHost}:${redisPort}`,
-        socket: {
-          host: redisHost,
-          port: redisPort,
-          reconnectStrategy: (retries) => {
-            if (retries > this.maxRetries) {
-              return null;
-            }
-            return Math.min(retries * 50, 2000);
-          }
-        }
-      });
+      // this.client = Redis.createClient({
+      //   url: `redis://${redisHost}:${redisPort}`,
+      //   socket: {
+      //     host: redisHost,
+      //     port: redisPort,
+      //     reconnectStrategy: (retries) => {
+      //       if (retries > this.maxRetries) {
+      //         return null;
+      //       }
+      //       return Math.min(retries * 50, 2000);
+      //     }
+      //   }
+      // });
 
-      this.client.on('connect', () => {
-        console.log('Redis Client Connected');
+      this.client = new Redis.Cluster(
+        [
+          { host: process.env.REDIS_HOST1, port: redisPort },
+          { host: process.env.REDIS_HOST2, port: redisPort },
+          { host: process.env.REDIS_HOST3, port: redisPort },
+        ]
+      )
+
+      if(this.client.status === "close" || this.client.status === "disconnecting") {
+        this.client.on('connect', () => {
+          console.log('Redis Client Connected');
+          this.isConnected = true;
+          this.connectionAttempts = 0;
+        });
+  
+        this.client.on('error', (err) => {
+          console.error('Redis Client Error:', err);
+          this.isConnected = false;
+        });
+  
+        await this.client.connect();
+      } else {
         this.isConnected = true;
         this.connectionAttempts = 0;
-      });
+        console.log("Redis client is already exists!")
+      }
 
-      this.client.on('error', (err) => {
-        console.error('Redis Client Error:', err);
-        this.isConnected = false;
-      });
-
-      await this.client.connect();
       return this.client;
 
     } catch (error) {
       console.error('Redis connection error:', error);
       this.isConnected = false;
-      this.retryConnection();
       throw error;
     }
   }
@@ -69,7 +83,7 @@ class RedisClient {
       }
 
       if (options.ttl) {
-        return await this.client.setEx(key, options.ttl, stringValue);
+        return await this.client.setex(key, options.ttl, stringValue);
       }
       return await this.client.set(key, stringValue);
     } catch (error) {
@@ -110,8 +124,8 @@ class RedisClient {
       } else {
         stringValue = String(value);
       }
-
-      return await this.client.setEx(key, seconds, stringValue);
+      
+      return await this.client.setex(key, seconds, stringValue);
     } catch (error) {
       console.error('Redis setEx error:', error);
       throw error;
@@ -145,6 +159,7 @@ class RedisClient {
   async quit() {
     if (this.client) {
       try {
+        await this.client.disconnect() 
         await this.client.quit();
         this.isConnected = false;
         this.client = null;
